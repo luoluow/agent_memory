@@ -63,7 +63,9 @@ class LLMJudge:
                 if hasattr(response, 'usage') and response.usage:
                     self.total_input_tokens += getattr(response.usage, 'prompt_tokens', 0) or 0
                     self.total_output_tokens += getattr(response.usage, 'completion_tokens', 0) or 0
-                content = response.choices[0].message.content
+                content = response.choices[0].message.content or ""
+                if not content.strip():
+                    raise ValueError("empty response from judge model")
                 try:
                     return json.loads(content)
                 except json.JSONDecodeError:
@@ -77,7 +79,8 @@ class LLMJudge:
                 if attempt < self.max_retries - 1:
                     time.sleep(2 ** attempt)
                 else:
-                    raise
+                    # Return a safe default so one bad call doesn't abort the whole run
+                    return {"correct": False, "reason": "judge call failed after retries"}
 
     # ----------------------------------------------------------
     # Task-specific prompts
@@ -473,6 +476,8 @@ if __name__ == "__main__":
                         help="Parallel episode workers (default: 4)")
     parser.add_argument("--check-workers", type=int, default=8,
                         help="Parallel check workers per episode (default: 8)")
+    parser.add_argument("--skip-existing", action="store_true",
+                        help="Skip episodes whose output file already exists")
     args = parser.parse_args()
 
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -493,6 +498,23 @@ if __name__ == "__main__":
 
     if not files:
         sys.exit("No agent output files found.")
+
+    if args.skip_existing:
+        judge_model_tag = args.judge_model.replace("/", "-")
+        kept = []
+        for fp in files:
+            with open(fp) as f:
+                _ao = json.load(f)
+            _domain = _ao.get("domain", "unknown")
+            _prefix = {"personal_life": "pl", "software_project": "sw"}.get(_domain, _domain)
+            _agent_cfg = _ao.get("config", {})
+            _agent_type = _agent_cfg.get("agent_type", "unknown")
+            _agent_model_tag = _agent_cfg.get("agent_model", "unknown").replace("/", "-")
+            _out = os.path.join(args.output_dir,
+                f"eval_{_prefix}_{_ao['episode_id']:03d}_{_agent_type}_{_agent_model_tag}_{judge_model_tag}.json")
+            if not os.path.exists(_out):
+                kept.append(fp)
+        files = kept
 
     print(f"Judging {len(files)} agent outputs (judge: {args.judge_model}, "
           f"workers={args.workers}, check_workers={args.check_workers})\n")

@@ -1,0 +1,52 @@
+# Eval 2026-05-25 for in-context baseline with claude-code Sonnet 4.6
+
+Here are the full results for the in-context baseline (no memory, claude-code model) on filler32k, 100 episodes:
+
+  ┌──────┬────────┬────────────────┬────────────────────┐
+  │ Task │ Phase  │     Score      │       Notes        │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ ER   │ before │ 0/100 — 0.0%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ ER   │ after  │ 5/100 — 5.0%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Agg  │ after  │ 5/100 — 5.0%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Tr   │ after  │ 6/100 — 6.0%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Del  │ before │ 5/100 — 5.0%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Del  │ after  │ 34/100 — 34.0% │ real=2, trivial=32 │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Cas  │ before │ 11/164 — 6.7%  │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Cas  │ after  │ 3/164 — 1.8%   │ real=3, trivial=0  │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Abs  │ before │ 9/130 — 6.9%   │                    │
+  ├──────┼────────┼────────────────┼────────────────────┤
+  │ Abs  │ after  │ 83/130 — 63.8% │ real=0, trivial=83 │
+  └──────┴────────┴────────────────┴────────────────────┘
+
+  ┌───────────────────────────────┬──────────────────────────────────────┐
+  │            Metric             │                Score                 │
+  ├───────────────────────────────┼──────────────────────────────────────┤
+  │ Before (pre-update questions) │ 25/494 — 5.1%                        │
+  ├───────────────────────────────┼──────────────────────────────────────┤
+  │ After (post-update questions) │ 136/694 — 19.6%                      │
+  ├───────────────────────────────┼──────────────────────────────────────┤
+  │ Cascade (Cas)                 │ 3/164 — 1.8% (real=3, all trivial=0) │
+  ├───────────────────────────────┼──────────────────────────────────────┤
+  │ Absence (Abs)                 │ 83/130 — 63.8% (all trivial passes)  │
+  ├───────────────────────────────┼──────────────────────────────────────┤
+  │ Deletion (Del)                │ 34/100 — 34% (real=2, trivial=32)    │
+  └───────────────────────────────┴──────────────────────────────────────┘
+
+  Per domain:
+  - PL: before 2.6%, after 19.0%
+  - SW: before 7.3%, after 20.2%
+
+  Key takeaways:
+  - ER/Agg/Tr are all ~5–6% — the model essentially can't retrieve facts from a 32k filler context
+  - Cas is nearly zero (1.8%) and only 3 real passes — the model can't track cascading updates
+  - Abs looks high (63.8%) but every single pass is trivial — the model says "I don't know" not because it understood anything changed, but because the
+  context is too long to find anything
+  - Del has 34% but only 2 real passes — same pattern as Abs
