@@ -34,6 +34,9 @@ SYSTEM_PROMPT = (
 
 
 def _make_client(model: str, api_key: str):
+    if model.startswith("claude-code"):
+        from agents.claude_code_adapter import ClaudeCodeAsOpenAI
+        return ClaudeCodeAsOpenAI()
     if model.startswith("claude"):
         from agents.anthropic_adapter import AnthropicAsOpenAI
         return AnthropicAsOpenAI(api_key=api_key)
@@ -136,7 +139,9 @@ def main():
     parser.add_argument("--skip-existing", action="store_true")
     args = parser.parse_args()
 
-    if args.model.startswith("claude"):
+    if args.model.startswith("claude-code"):
+        api_key = None  # uses claude CLI / Claude Pro subscription
+    elif args.model.startswith("claude"):
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             print("Error: ANTHROPIC_API_KEY not set"); sys.exit(1)

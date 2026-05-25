@@ -415,7 +415,13 @@ def judge_episode(agent_output: Dict, judge: LLMJudge, max_workers: int = 8) -> 
 
 def process_one_judge(fp, api_key, judge_model, output_dir, check_workers):
     import time as _time
-    client = OpenAI(api_key=api_key)
+    if judge_model.startswith("claude-code"):
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+        from agents.claude_code_adapter import ClaudeCodeAsOpenAI
+        client = ClaudeCodeAsOpenAI()
+    else:
+        client = OpenAI(api_key=api_key)
     judge = LLMJudge(client=client, model=judge_model)
 
     with open(fp) as f:
@@ -470,7 +476,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
+    if not api_key and not args.judge_model.startswith("claude-code"):
         sys.exit("Error: Set OPENAI_API_KEY environment variable")
 
     os.makedirs(args.output_dir, exist_ok=True)
