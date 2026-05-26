@@ -123,7 +123,7 @@ def _rebuild_memory_index(memory_dir: str) -> None:
 
 
 def _call_claude(prompt: str, system: str, model: str = "claude-code",
-                 timeout: int = 180) -> str:
+                 timeout: int = 180, cwd: Optional[str] = None) -> str:
     cmd = ["claude", "-p", "--output-format", "text", "--no-session-persistence"]
     if "/" in model:
         sub_model = model.split("/", 1)[1]
@@ -131,6 +131,7 @@ def _call_claude(prompt: str, system: str, model: str = "claude-code",
     cmd.extend(["--system-prompt", system])
     result = subprocess.run(
         cmd, input=prompt, capture_output=True, text=True, timeout=timeout,
+        cwd=cwd,
     )
     output = result.stdout.strip()
     if result.returncode != 0 and not output:
@@ -246,7 +247,8 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
             )
 
         try:
-            raw_output = _call_claude(user_prompt, INGEST_SYSTEM_PROMPT, self.model)
+            raw_output = _call_claude(user_prompt, INGEST_SYSTEM_PROMPT, self.model,
+                                      cwd=self._memory_dir)
         except Exception as e:
             return {
                 "error": str(e),

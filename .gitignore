@@ -3,3 +3,17 @@ external_docs
 filler32k_pl
 filler32k_sw
 output/
+
+# Stray memory files written by claude -p subprocesses during eval
+# (should go to temp dir via cwd=memory_dir, but gitignore as insurance)
+user_profile.md
+user_personal.md
+user_context.md
+user_work_info.md
+user_philosophy.md
+team_info.md
+team_context.md
+team_infrastructure.md
+db_infrastructure.md
+incident_logs.md
+.claude_memory_*.md
