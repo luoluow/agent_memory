@@ -76,6 +76,9 @@ def create_agent(agent_type: str, model: str, api_key: str = None,
     elif agent_type == "auto_memory":
         from agents.auto_memory import ClaudeCodeAutoMemory
         return ClaudeCodeAutoMemory(model=model)
+    elif agent_type == "wiki":
+        from agents.claude_code_wiki import ClaudeCodeWikiMemory
+        return ClaudeCodeWikiMemory(model=model)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -331,7 +334,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_dir", type=str, default="agent_outputs",
                         help="Output directory (default: agent_outputs/)")
     parser.add_argument("--agent-type", type=str, default="md_file",
-                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense", "auto_memory"],
+                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense", "auto_memory", "wiki"],
                         help="Agent type (default: md_file)")
     parser.add_argument("--model", type=str, default="gpt-4.1-mini",
                         help="Model for agent LLM (default: gpt-4.1-mini, matches paper main run)")
