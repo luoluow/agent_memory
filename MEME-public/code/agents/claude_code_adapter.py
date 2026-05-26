@@ -63,7 +63,6 @@ class _Completions:
         cmd = [
             "claude", "-p",
             "--output-format", "text",
-            "--tools", "",
             "--no-session-persistence",
         ]
 

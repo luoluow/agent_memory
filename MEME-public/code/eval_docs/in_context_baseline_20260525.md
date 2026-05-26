@@ -1,4 +1,4 @@
-# Eval 2026-05-25 for in-context baseline with claude-code Sonnet 4.6
+# Eval result (2026-05-25) for in-context baseline with claude-code Sonnet 4.6
 
 Here are the full results for the in-context baseline (no memory, claude-code model) on filler32k, 100 episodes:
 

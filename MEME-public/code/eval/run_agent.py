@@ -35,6 +35,9 @@ install_patches()
 
 def _make_client(model: str, api_key: str = None):
     """Create appropriate client based on model name."""
+    if model.startswith("claude-code"):
+        from agents.claude_code_adapter import ClaudeCodeAsOpenAI
+        return ClaudeCodeAsOpenAI()
     if model.startswith("claude"):
         from agents.anthropic_adapter import AnthropicAsOpenAI
         anthropic_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
@@ -70,6 +73,9 @@ def create_agent(agent_type: str, model: str, api_key: str = None,
     elif agent_type == "dense":
         from agents.dense_memory import DenseMemory
         return DenseMemory(model=model, api_key=api_key, internal_model=internal_model, **kwargs)
+    elif agent_type == "auto_memory":
+        from agents.auto_memory import ClaudeCodeAutoMemory
+        return ClaudeCodeAutoMemory(model=model)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -268,7 +274,10 @@ def process_one_episode(ep_path, agent_type, model, api_key, output_dir, interna
 
     # Create unified answer client (same LLM for all systems' answer phase)
     from agents.base import BaseMemorySystem
-    if model.startswith("claude"):
+    if model.startswith("claude-code"):
+        from agents.claude_code_adapter import ClaudeCodeAsOpenAI
+        answer_client = ClaudeCodeAsOpenAI()
+    elif model.startswith("claude"):
         from agents.anthropic_adapter import AnthropicAsOpenAI
         answer_client = AnthropicAsOpenAI(api_key=api_key)
     else:
@@ -322,7 +331,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_dir", type=str, default="agent_outputs",
                         help="Output directory (default: agent_outputs/)")
     parser.add_argument("--agent-type", type=str, default="md_file",
-                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense"],
+                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense", "auto_memory"],
                         help="Agent type (default: md_file)")
     parser.add_argument("--model", type=str, default="gpt-4.1-mini",
                         help="Model for agent LLM (default: gpt-4.1-mini, matches paper main run)")
@@ -342,8 +351,10 @@ if __name__ == "__main__":
         from eval.seed_injector import install_seed_patches
         install_seed_patches(args.seed)
 
-    # Answer LLM always needs Anthropic key if model is claude
-    if args.model.startswith("claude"):
+    # Answer LLM key — claude-code uses CLI (no key needed)
+    if args.model.startswith("claude-code"):
+        api_key = None
+    elif args.model.startswith("claude"):
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             print("Error: Set ANTHROPIC_API_KEY environment variable")

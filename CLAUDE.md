@@ -38,15 +38,20 @@ agent_memory/
 ├── external_docs/          # Immutable reference papers — do NOT modify
 ├── MEME-public/            # Forked MeME eval framework (cloned from GitHub)
 │   ├── code/agents/        # Memory system implementations
+│   │   ├── auto_memory.py          # Claude Code auto-memory agent
 │   │   └── claude_code_adapter.py  # Routes calls through `claude -p` CLI (no API key needed)
+│   ├── code/.claude/settings.json  # autoMemoryEnabled: false (prevents contamination)
 │   ├── code/eval/          # Evaluation runners (run_agent.py, in_context_baseline.py, judge.py)
 │   ├── code/eval_docs/     # Notes and exported results per evaluation run
 │   ├── code/dataset_tools/ # Dataset download/unpack utilities
 │   ├── code/scripts/       # Bash orchestration scripts
 │   └── code/data/          # Unpacked episode files (populated after setup)
 └── output/                 # Evaluation results (one subdir per approach)
-    └── in_context/
-        └── claude-code/    # In-context baseline results (100 episodes, filler32k)
+    ├── in_context/
+    │   └── claude-code/    # In-context baseline results (100 episodes, filler32k)
+    │       └── judge/      # Per-episode judge outputs + aggregated scores
+    └── auto_memory/
+        └── claude-code/    # Auto-memory results (100 episodes, filler32k)
             └── judge/      # Per-episode judge outputs + aggregated scores
 ```
 
@@ -102,11 +107,35 @@ python -m eval.judge \
 
 **Note:** Use `-w 1` for `claude-code` model to avoid overwhelming the CLI with concurrent subprocesses. The judge's `--skip-existing` flag was added in our fork to support resuming interrupted runs.
 
+### Auto-memory agent
+```bash
+cd MEME-public/code
+source .venvs/baseline_env/bin/activate
+
+for DOMAIN in pl sw; do
+  python -m eval.run_agent \
+    -d data/filler32k_${DOMAIN} \
+    -o ../../output/auto_memory/claude-code \
+    --agent-type auto_memory \
+    --model claude-code \
+    -w 1 --skip-existing
+done
+
+python -m eval.judge \
+  -d ../../output/auto_memory/claude-code \
+  -o ../../output/auto_memory/claude-code/judge \
+  --judge-model claude-code \
+  -w 1 --check-workers 4 --skip-existing
+```
+
+**Note:** `MEME-public/code/.claude/settings.json` sets `autoMemoryEnabled: false` to prevent synthetic episode content from contaminating the project's own Claude Code memory during `claude -p` subprocess calls.
+
 ### Completed runs
 
 | Approach | Model | Dataset | Agent output | Judge output |
 |----------|-------|---------|--------------|--------------|
 | In-context baseline | claude-code | filler32k (100 ep) | `output/in_context/claude-code/` | `output/in_context/claude-code/judge/` |
+| Auto-memory | claude-code | filler32k (100 ep) | `output/auto_memory/claude-code/` | `output/auto_memory/claude-code/judge/` |
 
 #### In-context baseline results (filler32k, 100 episodes)
 
@@ -124,6 +153,41 @@ python -m eval.judge \
 | Abs | after | 83 | 130 | 63.8% | real=0, trivial=83 |
 | **Overall** | **before** | **25** | **494** | **5.1%** | |
 | **Overall** | **after** | **136** | **694** | **19.6%** | |
+
+#### Auto-memory results (filler32k, 100 episodes)
+
+| Task | Phase | Pass | Total | % | Notes |
+|------|-------|------|-------|---|-------|
+| ER | before | 0 | 100 | 0.0% | |
+| ER | after | 86 | 100 | 86.0% | |
+| Agg | after | 41 | 100 | 41.0% | |
+| Tr | after | 14 | 100 | 14.0% | |
+| Del | before | 76 | 100 | 76.0% | |
+| Del | after | 54 | 100 | 54.0% | real=44, trivial=10 |
+| Cas | before | 145 | 164 | 88.4% | |
+| Cas | after | 62 | 164 | 37.8% | real=60, trivial=2 |
+| Abs | before | 120 | 130 | 92.3% | |
+| Abs | after | 38 | 130 | 29.2% | real=38, trivial=0 |
+| **Overall** | **before** | **341** | **494** | **69.0%** | |
+| **Overall** | **after** | **295** | **694** | **42.5%** | |
+
+#### Comparison: Auto-memory vs In-context baseline (after phase)
+
+| Task | In-context | Auto-memory | Delta |
+|------|-----------|-------------|-------|
+| ER | 5.0% | 86.0% | +81pp |
+| Agg | 5.0% | 41.0% | +36pp |
+| Tr | 6.0% | 14.0% | +8pp |
+| Del | 34.0% (real=2%) | 54.0% (real=44%) | +20pp |
+| Cas | 1.8% (real=1.8%) | 37.8% (real=36.6%) | +36pp |
+| Abs | 63.8% (real=0%) | 29.2% (real=29.2%) | −35pp (but baseline trivial, auto-memory real) |
+| **Overall** | **19.6%** | **42.5%** | **+23pp** |
+
+Key observations:
+- Auto-memory dominates on ER (+81pp), Agg (+36pp), Cas (+36pp real) — facts are accurately retained and updated
+- Del improves substantially — memory correctly tracks deletions (44 real vs 2 real for baseline)
+- Abs drops numerically but baseline passes were all trivial (model said "I don't know" because it had no memory); auto-memory's 38 passes are all real (knew something was deleted)
+- Tr improves modestly (14% vs 6%) — memory partially captures revision history but misses complex chains
 
 ## External Documents
 
