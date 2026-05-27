@@ -35,7 +35,6 @@ Dataset configs: `filler32k` (default, 100 episodes), `filler128k` (stress test,
 
 ```
 agent_memory/
-├── external_docs/          # Immutable reference papers — do NOT modify
 ├── MEME-public/            # Forked MeME eval framework (cloned from GitHub)
 │   ├── code/agents/        # Memory system implementations
 │   │   ├── auto_memory.py          # Claude Code auto-memory agent
@@ -191,11 +190,7 @@ Key observations:
 
 ## External Documents
 
-All files in `external_docs/` are immutable reference documents. Never modify them.
-
-| File | Purpose |
-|------|---------|
-| `karpathy_llm_wiki.md` | LLM Wiki architecture and workflows |
-| `A-Mem.pdf` | A-Mem method paper |
-| `Evo_Memory.pdf` | EvoMemory method paper |
-| `Meme_memory_eval.pdf` | MeME evaluation framework paper |
+- Karpathy LLM Wiki: https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+- Claude Auto Memory: https://code.claude.com/docs/en/memory#auto-memory
+- Evo-Memory: https://arxiv.org/pdf/2511.20857
+- A-Mem: https://arxiv.org/pdf/2502.12110
