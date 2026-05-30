@@ -1,8 +1,10 @@
 # Agent Memory
 
-This project evaluates different approaches to managing agent memory for long-term interactions. The eval framework is [MeME](https://github.com/SeokwonJung-Jay/MEME-public), modified to run on Claude Code using a Claude Pro subscription instead of an API key.
+This project evaluates different approaches to managing agent memory for long-term interactions. The eval framework is [MeME](https://github.com/SeokwonJung-Jay/MEME-public), modified to run on Claude Code with Claude subscription instead of an API key.
 
-## Approaches
+disclaimer: the analysis is mostly done by claude code. It looks reasonable to me, but I didn't spend time to verify it myself.
+
+## Approaches Being Evaluated
 
 ### 1. In-context (baseline)
 No external memory. The full episode transcript — including all filler sessions (~42k tokens for filler32k) — is fed directly to the LLM for every question. Nothing is stored or summarized between sessions.
@@ -31,7 +33,7 @@ At question time, a first LLM call reads the index and selects which pages are r
 
 ---
 
-### 4. EvoMemory (inspired by [Evo-Memory / ReMem](https://arxiv.org/pdf/2511.20857))
+### 4. EvoMemory ([Evo-Memory](https://arxiv.org/pdf/2511.20857))
 Shares Auto-memory's ingest mechanism but adds a **Refine** pass at the end of each phase. After all evidence sessions are ingested, a single LLM call reads the entire memory store and reorganizes it: merging duplicates, resolving contradictions, and prominently marking deleted or discontinued facts at the top of each file.
 
 At question time, files are read directly (same as Auto-memory) — no extra LLM call.
@@ -122,21 +124,7 @@ EvoMemory (62%) and Auto-memory (29%) can distinguish "I know this was deleted" 
 
 ## How to Run
 
-```bash
-cd MEME-public/code
-source .venvs/baseline_env/bin/activate
-
-# Run an approach (paced to respect Claude session limits)
-python scripts/run_paced.py --agent evomem --domain both --inter-sleep 90
-
-# Judge results
-python -m eval.judge \
-  -d ../../output/evomem/claude-code \
-  -o ../../output/evomem/claude-code/judge \
-  --judge-model claude-code -w 1 --check-workers 4 --skip-existing
-```
-
-Agents: `auto_memory`, `wiki`, `evomem`, `amem`. See `CLAUDE.md` for full setup and dataset download instructions.
+Ask Claude code to run MEME eval for Auto Memory/A-Mem/EvoMemory/LLLM Wiki, check claude sessions limits regularly and pace the tasks to avoid hitting claude session limits.
 
 ---
 
