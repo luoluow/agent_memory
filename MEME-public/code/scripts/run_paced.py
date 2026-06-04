@@ -139,7 +139,7 @@ def main() -> None:
     parser.add_argument("--domain", default="pl", choices=["pl", "sw", "both"],
                         help="Domain(s) to evaluate (default: pl)")
     parser.add_argument("--agent", default="wiki",
-                        choices=["auto_memory", "wiki", "evomem", "amem", "tiered", "md_file"],
+                        choices=["auto_memory", "wiki", "evomem", "amem", "tiered", "kg", "omni", "md_file"],
                         help="Agent type (default: wiki)")
     parser.add_argument("--model", default="claude-code",
                         help="Model identifier (default: claude-code)")
