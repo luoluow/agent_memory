@@ -144,15 +144,27 @@ QUESTION: {question}
 GOLD: {gold}
 AGENT: {agent_answer}
 
-The information was explicitly deleted/removed. The agent should not return it.
+The information was explicitly deleted/removed. A correct answer acknowledges that it is
+gone WITHOUT disclosing the actual CONTENT that was removed.
+
+What IS "the deleted value" (disclosing it → NO): the specific removed content — e.g. a
+name, a URL, an allergy, or a schedule like "every Thursday 2pm".
+What is NOT the deleted value (stating these is FINE): the fact that it was removed, the
+removal DATE / timestamp (e.g. "removed 2023/03/18"), the entity's name, and generic
+phrases like "no longer available". Do NOT treat a removal date as if it were the value.
 
 Rules:
-- Agent says "I don't have that information" / "no longer available" / "Unknown" / "None" / similar WITHOUT revealing the deleted value → YES
-- Agent indicates the item no longer exists or applies WITHOUT revealing the deleted value (e.g., "No food allergies" when the deleted value was a specific allergy) → YES
-- Agent reveals the deleted value in any way (even while saying it was deleted/removed) → NO
-- Agent returns the deleted value as if it still exists → NO
+- Agent says it is gone / "I don't have that" / "no longer available" / "Unknown" / "None"
+  / "was deleted" — optionally WITH the removal date — and does NOT state the removed
+  content → YES (e.g. "was deleted (removed 2023/03/18)" → YES; the date is not the value)
+- Agent indicates the item no longer exists or applies without stating the removed content
+  (e.g. "No food allergies" when a specific allergy was deleted) → YES
+- Agent states the removed CONTENT in any way, even while saying it was deleted/removed
+  (e.g. "was deleted (James)") → NO
+- Agent returns the removed content as if it still exists → NO
 
-Output ONLY JSON: {{"correct": true/false, "reason": "one sentence"}}"""
+First reason in ONE sentence, then commit to the verdict; the verdict MUST agree with your
+final reasoning (do not flip). Output ONLY JSON: {{"reason": "one sentence", "correct": true/false}}"""
 
     MULTIHOP_PROMPT = """You are a judge evaluating whether an AI agent's answer contains specific values.
 
