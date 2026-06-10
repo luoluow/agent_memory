@@ -58,6 +58,31 @@ Output ONLY valid JSON with no markdown fences or explanation:
 """
 
 
+# "Dreaming" consolidation pass — a NOVEL extension (Claude Code has no such feature;
+# auto-memory is purely session-reactive). Runs once per phase over ALL memory files and
+# rewrites them as a cleaner, deduplicated, cross-linked, cascade-resolved set. General
+# consolidation only — no benchmark-specific instructions (e.g. no Abs uncertainty tell),
+# so any Abs/Cas gains reflect emergent behavior.
+DREAM_SYSTEM_PROMPT = """\
+You are performing a memory consolidation ("dreaming") pass. You are given the agent's \
+CURRENT memory files. Re-read ALL of them and produce a cleaner, consolidated set.
+
+Goals:
+- Merge duplicate or closely related facts split across files into one coherent entry; \
+remove redundancy.
+- Keep EVERY distinct durable fact — do not drop information, only reorganize/deduplicate.
+- For a fact that changed over time, keep the CURRENT value. If the user described a \
+dependency ("my Y depends on my X", "if X changes Y becomes Z") and X has since changed, \
+update Y to its resulting current value.
+- If a fact was explicitly removed/cancelled/ended, ensure it is clearly recorded as \
+removed and its old value is NOT presented as current.
+- Group related facts under well-named topic files (short snake_case.md, with frontmatter).
+
+Output ONLY valid JSON with no fences:
+{"files": [{"name": "filename.md", "content": "---\\nname: ...\\n---\\n\\nbody"}]}
+Return the COMPLETE consolidated set of files — this REPLACES all current topic files."""
+
+
 def _format_session(session: dict) -> str:
     ts = session.get("timestamp", "")
     parts = [f"[Session: {ts}]"] if ts else ["[Session]"]
@@ -199,9 +224,10 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
     """
 
     def __init__(self, model: str = "claude-code",
-                 base_tmp_dir: Optional[str] = None):
+                 base_tmp_dir: Optional[str] = None, dreaming: bool = False):
         self.model = model
         self.base_tmp_dir = base_tmp_dir or tempfile.gettempdir()
+        self.dreaming = dreaming
         self._memory_dir: Optional[str] = None
         self._last_retrieved_context: str = ""
         self._answer_token_usage: Dict = {"input_tokens": 0, "output_tokens": 0}
@@ -268,6 +294,56 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
             "memory_entries": len(files_written),
             "token_usage": {"input_tokens": 0, "output_tokens": 0},
         }
+
+    def finalize_ingest(self):
+        """Dreaming consolidation pass over ALL memory files (once per phase).
+
+        No-op unless dreaming is enabled. On a parse failure the existing memory is
+        left untouched (a bad dream must never destroy the awake-written memory)."""
+        if not self.dreaming or self._memory_dir is None:
+            return
+        current = _read_memory_files(self._memory_dir)
+        if not current.strip():
+            return
+        prompt = (
+            f"Current memory files:\n{current}\n\n"
+            f"Consolidate and reorganize ALL of this memory into a clean, "
+            f"deduplicated set and return the complete file list."
+        )
+        try:
+            raw = _call_claude(prompt, DREAM_SYSTEM_PROMPT, self.model,
+                               cwd=self._memory_dir)
+        except Exception:
+            return
+
+        text = raw.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```[a-z]*\n?", "", text)
+            text = re.sub(r"\n?```$", "", text.strip())
+        try:
+            parsed = json.loads(text)
+            files = parsed.get("files") or []
+        except (json.JSONDecodeError, ValueError, AttributeError):
+            return
+        files = [f for f in files if (f.get("name") or "").strip()
+                 and (f.get("content") or "").strip()]
+        if not files:
+            return  # nothing valid — keep existing memory
+
+        # Replace the topic files with the consolidated set (keep MEMORY.md index).
+        for fname in os.listdir(self._memory_dir):
+            if fname != "MEMORY.md" and fname.endswith(".md"):
+                try:
+                    os.remove(os.path.join(self._memory_dir, fname))
+                except OSError:
+                    pass
+        for fspec in files:
+            fname = re.sub(r"[^\w\-.]", "_", fspec["name"].strip())
+            if not fname.endswith(".md"):
+                fname += ".md"
+            with open(os.path.join(self._memory_dir, fname), "w") as f:
+                f.write(fspec["content"].strip() + "\n")
+        _rebuild_memory_index(self._memory_dir)
 
     def retrieve(self, question: str) -> str:
         """Return all memory file bodies concatenated (no LLM call)."""
