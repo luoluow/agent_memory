@@ -1,10 +1,6 @@
 # Agentic Memory Systems on MeME — Auto-Memory vs. Hermes vs. OpenClaw
 
-A head-to-head comparison of file-based agentic memory systems on the **MeME**
-benchmark (filler32k, 100 episodes, Personal-Life + Software-Project domains). All
-systems are answered and judged identically (`claude-code` answerer + real MeME
-`LLMJudge`) over the same shared answer prompt, so the **only variable is the memory
-architecture**.
+A head-to-head comparison of file-based agentic memory systems on the **MeME** benchmark (filler32k, 100 episodes, Personal-Life + Software-Project domains). All systems are answered and judged identically (`claude-code` answerer + real MeME `LLMJudge`) over the same shared answer prompt, so the **only variable is the memory architecture**.
 
 **Dataset:** `filler32k` (50 pl + 50 sw episodes) · **Judge:** MeME `LLMJudge` (real correctness) · **Baseline:** in-context (no memory) = 19.6% overall (after).
 
@@ -12,9 +8,7 @@ architecture**.
 
 ## TL;DR
 
-All four configurations are "the agent curates markdown files," but they differ in
-whether they keep an **always-on, resolved digest** of memory or rely on **search over
-raw notes** — and MeME shows that single choice dominates the results.
+All four configurations are "the agent curates markdown files," but they differ in whether they keep an **always-on, resolved digest** of memory or rely on **search over raw notes** — and MeME shows that single choice dominates the results.
 
 | | Auto-Memory | Auto-Memory **+dream** | Hermes | OpenClaw (default) | OpenClaw **+dreaming** |
 |---|---:|---:|---:|---:|---:|
