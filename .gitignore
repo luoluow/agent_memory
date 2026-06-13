@@ -17,3 +17,6 @@ team_infrastructure.md
 db_infrastructure.md
 incident_logs.md
 .claude_memory_*.md
+
+# Moved to its own repo: github.com/luoluow/omni_memory
+omniservice/

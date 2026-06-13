@@ -1,8 +1,8 @@
 # Agent Memory
 
-This project evaluates different approaches to managing agent memory for long-term interactions. The eval framework is [MeME](https://github.com/SeokwonJung-Jay/MEME-public), modified to run on Claude Code with Claude subscription instead of an API key.
+This project looks at different ways to handle long-term agent memory. I used the [MeME eval framework](https://github.com/SeokwonJung-Jay/MEME-public), modifying it to run locally on Claude Code with a Claude subscription instead of an API key.
 
-disclaimer: the analysis is mostly done by claude code. It looks reasonable to me, but I didn't spend time to verify it myself.
+Disclaimer: This analysis was mostly handled by Claude Code. The output looks reasonable, but I haven't deep-dived into verifying all the details myself.
 
 ## Approaches Being Evaluated
 

@@ -76,6 +76,18 @@ def create_agent(agent_type: str, model: str, api_key: str = None,
     elif agent_type == "auto_memory":
         from agents.auto_memory import ClaudeCodeAutoMemory
         return ClaudeCodeAutoMemory(model=model)
+    elif agent_type == "auto_memory_dreaming":
+        from agents.auto_memory import ClaudeCodeAutoMemory
+        return ClaudeCodeAutoMemory(model=model, dreaming=True)
+    elif agent_type == "hermes":
+        from agents.hermes_memory import HermesMemory
+        return HermesMemory(model=model)
+    elif agent_type == "openclaw":
+        from agents.openclaw_memory import OpenClawMemory
+        return OpenClawMemory(model=model)
+    elif agent_type == "openclaw_dreaming":
+        from agents.openclaw_memory import OpenClawMemory
+        return OpenClawMemory(model=model, dreaming=True)
     elif agent_type == "wiki":
         from agents.claude_code_wiki import ClaudeCodeWikiMemory
         return ClaudeCodeWikiMemory(model=model)
@@ -85,6 +97,15 @@ def create_agent(agent_type: str, model: str, api_key: str = None,
     elif agent_type == "amem":
         from agents.amem import AMem
         return AMem(model=model)
+    elif agent_type == "tiered":
+        from agents.tiered_memory import TieredMemory
+        return TieredMemory(model=model)
+    elif agent_type == "kg":
+        from agents.kg_memory import KGMemory
+        return KGMemory(model=model)
+    elif agent_type == "omni":
+        from agents.omni_memory import OmniMemory
+        return OmniMemory(model=model)
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -340,7 +361,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output_dir", type=str, default="agent_outputs",
                         help="Output directory (default: agent_outputs/)")
     parser.add_argument("--agent-type", type=str, default="md_file",
-                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense", "auto_memory", "wiki", "evomem", "amem"],
+                        choices=["md_file", "karpathy", "mem0", "graphiti", "bm25", "dense", "auto_memory", "wiki", "evomem", "amem", "tiered", "kg", "omni", "hermes", "openclaw", "openclaw_dreaming", "auto_memory_dreaming"],
                         help="Agent type (default: md_file)")
     parser.add_argument("--model", type=str, default="gpt-4.1-mini",
                         help="Model for agent LLM (default: gpt-4.1-mini, matches paper main run)")
