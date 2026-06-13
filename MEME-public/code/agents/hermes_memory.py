@@ -102,14 +102,16 @@ def _format_session(session: dict) -> str:
 
 
 def _call_claude(prompt: str, system: str, model: str = "claude-code",
-                 timeout: int = 180) -> str:
+                 timeout: int = 180, cwd: Optional[str] = None) -> str:
     import subprocess
     cmd = ["claude", "-p", "--output-format", "text", "--no-session-persistence"]
     if "/" in model:
         cmd.extend(["--model", model.split("/", 1)[1]])
     cmd.extend(["--system-prompt", system])
+    # Run inside the agent's isolated dir so any stray file the CLI writes lands there,
+    # never in the repo root (the flush/curation prompts can induce MEMORY.md writes).
     result = subprocess.run(
-        cmd, input=prompt, capture_output=True, text=True, timeout=timeout,
+        cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd=cwd,
     )
     output = result.stdout.strip()
     if result.returncode != 0 and not output:
@@ -309,7 +311,7 @@ class HermesMemory(BaseMemorySystem):
         )
 
         try:
-            raw = _call_claude(prompt, INGEST_SYSTEM_PROMPT, self.model)
+            raw = _call_claude(prompt, INGEST_SYSTEM_PROMPT, self.model, cwd=self._dir)
         except Exception as e:
             return {"error": str(e), "memory_entries": 0,
                     "token_usage": {"input_tokens": 0, "output_tokens": 0}}

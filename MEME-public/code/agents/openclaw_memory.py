@@ -128,13 +128,14 @@ def _format_session(session: dict) -> str:
 
 
 def _call_claude(prompt: str, system: str, model: str = "claude-code",
-                 timeout: int = 180) -> str:
+                 timeout: int = 180, cwd: Optional[str] = None) -> str:
     cmd = ["claude", "-p", "--output-format", "text", "--no-session-persistence"]
     if "/" in model:
         cmd.extend(["--model", model.split("/", 1)[1]])
     cmd.extend(["--system-prompt", system])
+    # Isolate cwd so any stray file the CLI writes lands in the agent dir, not the repo root.
     result = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
-                            timeout=timeout)
+                            timeout=timeout, cwd=cwd)
     out = result.stdout.strip()
     if result.returncode != 0 and not out:
         raise RuntimeError(
@@ -297,7 +298,7 @@ class OpenClawMemory(BaseMemorySystem):
         date = (session.get("timestamp") or "").split("T")[0].split(" ")[0]
         body = _format_session(session)
         try:
-            raw = _call_claude(body, FLUSH_SYSTEM_PROMPT, self.model)
+            raw = _call_claude(body, FLUSH_SYSTEM_PROMPT, self.model, cwd=self._dir)
         except Exception as e:
             return {"error": str(e), "chunks": len(self._vecs),
                     "token_usage": {"input_tokens": 0, "output_tokens": 0}}
@@ -344,7 +345,7 @@ class OpenClawMemory(BaseMemorySystem):
         if not notes.strip():
             return
         try:
-            consolidated = _call_claude(notes, DREAM_SYSTEM_PROMPT, self.model)
+            consolidated = _call_claude(notes, DREAM_SYSTEM_PROMPT, self.model, cwd=self._dir)
         except Exception:
             return
         consolidated = consolidated.strip()
