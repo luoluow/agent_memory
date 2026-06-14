@@ -19,28 +19,12 @@ These systems are all "the agent curates markdown files," but they differ in whe
 > 1. **Dreaming wins decisively (66.0%).** Claude Code auto-memory plus a consolidation
 >    pass that re-reads the raw session transcripts — Anthropic's
 >    [Dreams](https://platform.claude.com/docs/en/managed-agents/dreams) design — recovers
->    facts the incremental writes missed: **ER 95%, Tr 72%, Cas 74%, Abs 41%**. It beats the
->    next-best system by 12pp.
+>    facts the incremental writes missed: **ER 95%, Tr 72%, Cas 74%, Abs 41%**. It beats the next-best system by 12pp.
 > 2. **An always-on resolved digest is the floor.** Every system that keeps one lands
 >    42–66%; the one that doesn't (OpenClaw default) collapses to 26%.
-> 3. **Consolidation helps inversely to how much a system already consolidates** — but the
->    source matters more. OpenClaw default (append-only) gains **+27.8pp** from a memory-only
->    dream; Claude auto-memory (already curates per-session) gains **+23.5pp**, almost all of
->    it from the dream *re-reading the transcripts* rather than just reorganizing memory.
-> 4. **Dreaming trades a little forgetting for a lot of recall.** Its only weak task is
->    **Del (58%)** — re-reading the source can resurface a deleted value — while it tops or
->    ties every other task.
-> 5. **No single design wins all six tasks:** Hermes' FTS ties ER; OpenClaw+dreaming edges
->    Cas; auto-memory (no dream) holds Del. Dreaming leads overall and on ER/Tr/Abs.
-
-> **"Dreaming" is a real Anthropic feature, not just our invention.** Claude Code's *CLI*
-> auto-memory is purely session-reactive (no consolidation pass). But the **Managed Agents
-> API ships [Dreams](https://platform.claude.com/docs/en/managed-agents/dreams)** — an
-> async job that reads a memory store **plus 1–100 raw session transcripts** and emits a
-> *new* reorganized store (duplicates merged, stale/contradicted entries replaced with the
-> latest value, new insights surfaced). Our **Auto-Memory +dreaming** matches that design
-> (consolidation over memory + transcripts). OpenClaw ships the same idea as its opt-in
-> "dreaming" (over its notes).
+> 3. **Consolidation helps inversely to how much a system already consolidates** — but thesource matters more. OpenClaw default (append-only) gains **+27.8pp** from a memory-only dream; Claude auto-memory (already curates per-session) gains **+23.5pp**, almost all of it from the dream *re-reading the transcripts* rather than just reorganizing memory.
+> 4. **Dreaming trades a little forgetting for a lot of recall.** Its only weak task is **Del (58%)** — re-reading the source can resurface a deleted value — while it tops or ties every other task.
+> 5. **No single design wins all six tasks:** Hermes' FTS ties ER; OpenClaw+dreaming edges Cas; auto-memory (no dream) holds Del. Dreaming leads overall and on ER/Tr/Abs.
 
 ---
 
@@ -56,27 +40,19 @@ These systems are all "the agent curates markdown files," but they differ in whe
 | Forgetting | overwrite **deletes** the value | text note; value still recallable via FTS | none; old note stays, search resurfaces it |
 | Reference | [code.claude.com/docs](https://code.claude.com/docs/en/memory#auto-memory) | [nousresearch/hermes-agent](https://github.com/nousresearch/hermes-agent) | [openclaw/openclaw](https://github.com/openclaw/openclaw) |
 
-All are reimplemented as MeME agents (`agents/auto_memory.py`, `hermes_memory.py`,
-`openclaw_memory.py`) using the real formats, budgets, and retrieval mechanics. Answerer
-(`claude-code` + shared prompt) and judge are identical. OpenClaw's vector half uses
-local `nomic-embed-text` (Ollama), off the answerer's quota.
+All are reimplemented as MeME agents (`agents/auto_memory.py`, `hermes_memory.py`, `openclaw_memory.py`) using the real formats, budgets, and retrieval mechanics. Answerer(`claude-code` + shared prompt) and judge are identical. OpenClaw's vector half uses local `nomic-embed-text` (Ollama), off the answerer's quota.
 
-**Two OpenClaw configs are reported**, because the difference between them *is* the
-finding:
-- **default** — dreaming OFF (its real default), so `MEMORY.md` stays empty and the
-  model sees only hybrid search hits over raw append-only notes.
-- **+dreaming** — the opt-in consolidation pass runs after each phase, distilling the
-  notes into a resolved `MEMORY.md` that is surfaced always-on alongside search.
+**Two OpenClaw configs are reported**, because the difference between them *is* the finding:
+- **default** — dreaming OFF (its real default), so `MEMORY.md` stays empty and the model sees only hybrid search hits over raw append-only notes.
+- **+dreaming** — the opt-in consolidation pass runs after each phase, distilling the notes into a resolved `MEMORY.md` that is surfaced always-on alongside search.
 
 ---
 
 ## Results — full per-task table (after phase)
 
-`real` = genuinely-correct passes; `trivial` = passes from "I don't know" that happened
-to be acceptable.
+`real` = genuinely-correct passes; `trivial` = passes from "I don't know" that happened to be acceptable.
 
-Best in **bold**. **+dreaming** = the Dreams-style consolidation over memory **+ raw
-transcripts** (the Anthropic Dreams design).
+Best in **bold**. **+dreaming** = the Dreams-style consolidation over memory **+ raw transcripts** (the Anthropic Dreams design).
 
 | Task | Measures | Auto-Memory | Auto-Memory **+dreaming** | Hermes | OpenClaw | OpenClaw **+dreaming** |
 |------|----------|------------:|--------------------------:|-------:|---------:|----------------------:|
@@ -103,68 +79,32 @@ transcripts** (the Anthropic Dreams design).
 
 ### The audit: why default OpenClaw looked weak (and why it isn't)
 
-A 2× gap between two comparable products (OpenClaw 26.4% vs Hermes 51.0%) was a red
-flag. Auditing the OpenClaw source and our adapter found the gap was **~half config,
-~half a fixable artifact** — not a product deficiency:
+A 2× gap between two comparable products (OpenClaw 26.4% vs Hermes 51.0%) was a red flag. Auditing the OpenClaw source and our adapter found the gap was **~half config, ~half a fixable artifact** — not a product deficiency:
 
-1. **Empty `MEMORY.md` (config).** In OpenClaw's default, the per-session flush only
-   ever *appends* to dated notes; the single thing that consolidates them into the
-   long-term `MEMORY.md` is **dreaming, which is off by default**. So default OpenClaw
-   answers from a *ranked jumble of raw note lines*, with no resolved digest — while
-   Hermes always injects its full resolved file. Enabling dreaming closes the gap.
-2. **Per-line chunking (adapter artifact).** Real OpenClaw retrieves multi-line snippet
-   ranges; our first adapter indexed one note-line per chunk. Of 88 default-config Agg
-   failures, **33 had a gold item missing from the retrieved context** purely from
-   fragmentation. Fixed by chunking per flush-block (Agg 12% → 37%).
-3. **Not a problem:** the `active-memory` plugin injects only a ~220-char summary (our
-   6k-char retrieval is already more generous); top-K ≈ 10 and dreaming-off match the
-   real defaults.
+1. **Empty `MEMORY.md` (config).** In OpenClaw's default, the per-session flush only ever *appends* to dated notes; the single thing that consolidates them into the long-term `MEMORY.md` is **dreaming, which is off by default**. So default OpenClaw answers from a *ranked jumble of raw note lines*, with no resolved digest — while Hermes always injects its full resolved file. Enabling dreaming closes the gap.
+2. **Per-line chunking (adapter artifact).** Real OpenClaw retrieves multi-line snippet ranges; our first adapter indexed one note-line per chunk. Of 88 default-config Agg failures, **33 had a gold item missing from the retrieved context** purely from fragmentation. Fixed by chunking per flush-block (Agg 12% → 37%).
+3. **Not a problem:** the `active-memory` plugin injects only a ~220-char summary (our 6k-char retrieval is already more generous); top-K ≈ 10 and dreaming-off match the real defaults.
 
-**With both addressed, OpenClaw+dreaming reaches 54.2% — the best overall.** So the
-real lesson is about *configuration*: a memory product's headline number depends
-entirely on whether its consolidation layer is on.
+**With both addressed, OpenClaw+dreaming reaches 54.2% — the best overall.** So the real lesson is about *configuration*: a memory product's headline number depends entirely on whether its consolidation layer is on.
 
 ### Dreaming over memory + transcripts is the decisive lever (Auto-Memory +dreaming)
 
-Adding the Dreams-style consolidation to Claude Code auto-memory is the single biggest
-jump in the study: **42.5 → 66.0% overall (+23.5pp), the best system by 12pp.** The key
-is *what the dream reads*. Auto-memory already re-curates its files every session, so a
-dream that only **reorganized memory** would add little (the same logic that gave
-append-only OpenClaw a big lift gives an already-curating system a small one). The win
-comes from the dream **re-reading the raw session transcripts** — exactly Anthropic's
-[Dreams](https://platform.claude.com/docs/en/managed-agents/dreams) design — which
-*recovers* facts the lossy incremental writes never captured:
+Adding the Dreams-style consolidation to Claude Code auto-memory is the single biggest jump in the study: **42.5 → 66.0% overall (+23.5pp), the best system by 12pp.** The key is *what the dream reads*. Auto-memory already re-curates its files every session, so a dream that only **reorganized memory** would add little (the same logic that gave
+append-only OpenClaw a big lift gives an already-curating system a small one). The win comes from the dream **re-reading the raw session transcripts** — exactly Anthropic's
+[Dreams](https://platform.claude.com/docs/en/managed-agents/dreams) design — which *recovers* facts the lossy incremental writes never captured:
 
-- **ER 86 → 95%, Tr 14 → 72%, Cas 37.8 → 73.8%, Abs 29 → 41%** — re-reading the source
-  recovers verbatim quotes, full revision chains, dependency rules, and the
-  trigger-changed signals that drive uncertainty. Tr is the standout: incremental
-  overwriting destroys history, but the transcripts still hold the full chain.
+- **ER 86 → 95%, Tr 14 → 72%, Cas 37.8 → 73.8%, Abs 29 → 41%** — re-reading the source recovers verbatim quotes, full revision chains, dependency rules, and the trigger-changed signals that drive uncertainty. Tr is the standout: incremental overwriting destroys history, but the transcripts still hold the full chain.
 - **Agg 41 → 59%:** the global pass groups facts scattered across typed files.
-- **The one cost — Del 54 → 58% is a near-wash, and below the other variants' peak:**
-  re-reading a transcript that introduced a fact *before* it was deleted can resurface the
-  deleted value (the `partner: James` case). This is the recall↔forgetting tension seen
-  across the study — transcript mining lands hard on the recall side. Net, the recall
-  gains (9–58pp across five tasks) dwarf any Del cost.
+- **The one cost — Del 54 → 58% is a near-wash, and below the other variants' peak:** re-reading a transcript that introduced a fact *before* it was deleted can resurface the deleted value (the `partner: James` case). This is the recall↔forgetting tension seen across the study — transcript mining lands hard on the recall side. Net the recall gains (9–58pp across five tasks) dwarf any Del cost.
 
-This is the clearest result in the comparison: **a consolidation pass that re-reads the
-source transcripts beats every other memory design**, and it is a shipping Anthropic
-feature, not a hypothetical.
+This is the clearest result in the comparison: **a consolidation pass that re-reads the source transcripts beats every other memory design**, and it is a shipping Anthropic feature, not a hypothetical.
 
 ### Axis 1 — the always-on resolved digest decides cascade & invalidation (Cas, Abs)
 
-The systems that maintain a resolved digest can *apply* state changes; the one that
-doesn't can't.
+The systems that maintain a resolved digest can *apply* state changes; the one that doesn't can't.
 
-- **Cas:** OpenClaw+dreaming **80.5%** (real 71%), Hermes 76%, **auto+dreaming 74%**, base
-  auto 38%, OpenClaw default **15%**. Default OpenClaw stores a cascade as an *unresolved
-  conditional* note ("medication switches to multivitamin **if** health changes") and never
-  collapses it; `knew_but_failed` is a damning **91/164**. Any dreaming pass consolidates it
-  into the current value ("medication: multivitamin") — OpenClaw's drops `knew_but_failed`
-  to **22**, auto-memory's to **40**.
-- **Abs:** auto+dreaming **40.8%** and OpenClaw+dreaming 36.2% lead — and notably *without*
-  any hand-coded uncertainty rule (we removed that tell). The "resolve to current value /
-  don't carry removed values forward" consolidation produces the right behavior emergently;
-  re-reading transcripts (auto+dreaming) sharpens it further.
+- **Cas:** OpenClaw+dreaming **80.5%** (real 71%), Hermes 76%, **auto+dreaming 74%**, base auto 38%, OpenClaw default **15%**. Default OpenClaw stores a cascade as an *unresolved conditional* note ("medication switches to multivitamin **if** health changes") and never collapses it; `knew_but_failed` is a damning **91/164**. Any dreaming pass consolidates it into the current value ("medication: multivitamin") — OpenClaw's drops `knew_but_failed` to **22**, auto-memory's to **40**.
+- **Abs:** auto+dreaming **40.8%** and OpenClaw+dreaming 36.2% lead — and notably *without* any hand-coded uncertainty rule (we removed that tell). The "resolve to current value / don't carry removed values forward" consolidation produces the right behavior emergently; re-reading transcripts (auto+dreaming) sharpens it further.
 
 ```
 Cas [sw_017] "What authentication method do we use?"   GOLD: SAML 2.0 SSO (cascaded)
