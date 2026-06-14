@@ -77,6 +77,7 @@ def create_agent(agent_type: str, model: str, api_key: str = None,
         from agents.auto_memory import ClaudeCodeAutoMemory
         return ClaudeCodeAutoMemory(model=model)
     elif agent_type == "auto_memory_dreaming":
+        # Dreams-style consolidation over memory + raw transcripts (Anthropic Dreams design).
         from agents.auto_memory import ClaudeCodeAutoMemory
         return ClaudeCodeAutoMemory(model=model, dreaming=True)
     elif agent_type == "hermes":

@@ -58,24 +58,26 @@ Output ONLY valid JSON with no markdown fences or explanation:
 """
 
 
-# "Dreaming" consolidation pass — a NOVEL extension (Claude Code has no such feature;
-# auto-memory is purely session-reactive). Runs once per phase over ALL memory files and
-# rewrites them as a cleaner, deduplicated, cross-linked, cascade-resolved set. General
-# consolidation only — no benchmark-specific instructions (e.g. no Abs uncertainty tell),
-# so any Abs/Cas gains reflect emergent behavior.
+# "Dreaming" consolidation pass — matches Anthropic's "Dreams" feature
+# (platform.claude.com/docs/en/managed-agents/dreams): it takes the memory store PLUS the
+# raw session transcripts and "mines them for patterns and insights to fold into the
+# output," producing a reorganized memory. Re-reading the source RECOVERS facts the lossy
+# incremental writes missed. General consolidation only — no benchmark-specific
+# instructions (e.g. no Abs uncertainty tell), so Abs/Cas gains reflect emergent behavior.
 DREAM_SYSTEM_PROMPT = """\
 You are performing a memory consolidation ("dreaming") pass. You are given the agent's \
-CURRENT memory files. Re-read ALL of them and produce a cleaner, consolidated set.
+CURRENT memory files AND the raw session transcripts they were built from. Produce a \
+cleaner, more complete, consolidated set of memory files.
 
 Goals:
-- Merge duplicate or closely related facts split across files into one coherent entry; \
-remove redundancy.
-- Keep EVERY distinct durable fact — do not drop information, only reorganize/deduplicate.
-- For a fact that changed over time, keep the CURRENT value. If the user described a \
-dependency ("my Y depends on my X", "if X changes Y becomes Z") and X has since changed, \
-update Y to its resulting current value.
-- If a fact was explicitly removed/cancelled/ended, ensure it is clearly recorded as \
-removed and its old value is NOT presented as current.
+- Merge duplicate or closely related facts split across files; remove redundancy.
+- RECOVER from the transcripts any durable fact that is missing from the current memory \
+or was recorded wrong — re-read the transcripts closely; incremental writes are lossy.
+- Keep EVERY distinct durable fact. For a fact that changed over time, keep the CURRENT \
+value (use transcript dates). If the user described a dependency and its trigger has \
+since changed, update the dependent fact to its resulting current value.
+- If a fact was explicitly removed/cancelled/ended, record it as removed; do NOT present \
+its old value as current.
 - Group related facts under well-named topic files (short snake_case.md, with frontmatter).
 
 Output ONLY valid JSON with no fences:
@@ -227,8 +229,9 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
                  base_tmp_dir: Optional[str] = None, dreaming: bool = False):
         self.model = model
         self.base_tmp_dir = base_tmp_dir or tempfile.gettempdir()
-        self.dreaming = dreaming
+        self.dreaming = dreaming   # Dreams-style consolidation over memory + transcripts
         self._memory_dir: Optional[str] = None
+        self._transcripts: list = []   # archived evidence transcripts (for Dreams-style mining)
         self._last_retrieved_context: str = ""
         self._answer_token_usage: Dict = {"input_tokens": 0, "output_tokens": 0}
 
@@ -241,6 +244,7 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
         )
         os.makedirs(self._memory_dir, exist_ok=True)
         _rebuild_memory_index(self._memory_dir)
+        self._transcripts = []
         self._last_retrieved_context = ""
         self._answer_token_usage = {"input_tokens": 0, "output_tokens": 0}
 
@@ -258,6 +262,9 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
             }
 
         session_text = _format_session(session)
+        # Archive the evidence transcript so the Dreams-style pass can re-mine the source.
+        if self.dreaming:
+            self._transcripts.append(session_text)
         current_memory = _read_memory_files(self._memory_dir)
 
         if current_memory:
@@ -305,14 +312,20 @@ class ClaudeCodeAutoMemory(BaseMemorySystem):
         current = _read_memory_files(self._memory_dir)
         if not current.strip():
             return
+
+        # Dreams-style: feed memory + the raw source transcripts so the pass can recover
+        # missed facts, not just reorganize what's already in memory.
+        transcripts = "\n\n".join(
+            f"--- Transcript {i+1} ---\n{t}" for i, t in enumerate(self._transcripts)
+        )
         prompt = (
             f"Current memory files:\n{current}\n\n"
-            f"Consolidate and reorganize ALL of this memory into a clean, "
-            f"deduplicated set and return the complete file list."
+            f"Raw session transcripts (the source these were built from):\n{transcripts}\n\n"
+            f"Consolidate AND recover any missed/incorrect facts from the transcripts; "
+            f"return the complete file list."
         )
         try:
-            raw = _call_claude(prompt, DREAM_SYSTEM_PROMPT, self.model,
-                               cwd=self._memory_dir)
+            raw = _call_claude(prompt, DREAM_SYSTEM_PROMPT, self.model, cwd=self._memory_dir)
         except Exception:
             return
 
