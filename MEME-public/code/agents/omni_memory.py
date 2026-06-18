@@ -63,6 +63,20 @@ def _get_local_client() -> OpenAI:
 
 def _call_local(prompt: str, system: str, model: str = EXTRACT_MODEL,
                 max_tokens: int = 1024, temperature: float = 0.0) -> str:
+    # Construction can be routed to a cloud model (e.g. matched-comparison runs where both
+    # agents must construct on the same model): 'claude-code[/<submodel>]' -> claude CLI;
+    # otherwise the local Ollama OpenAI endpoint.
+    if model and model.startswith("claude-code"):
+        import subprocess
+        cmd = ["claude", "-p", "--output-format", "text", "--no-session-persistence",
+               "--system-prompt", system]
+        if "/" in model:
+            cmd += ["--model", model.split("/", 1)[1]]
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=300)
+        out = r.stdout.strip()
+        if r.returncode != 0 and not out:
+            raise RuntimeError(f"claude CLI failed (exit {r.returncode}): {r.stderr.strip()[:200]}")
+        return out
     client = _get_local_client()
     response = client.chat.completions.create(
         model=model,
@@ -493,6 +507,13 @@ class OmniMemory(BaseMemorySystem):
         self.model         = model          # cloud model for answers (unused here)
         self.extract_model = extract_model
         self.verify_model  = verify_model
+        # Matched-comparison knob: route construction (EXTRACT/VERIFY/RELATE/COMPRESS/
+        # RECONSTRUCT) to one model so it can match the other agent's construction model.
+        # e.g. OMNI_CONSTRUCTION_MODEL=claude-code/sonnet. Embeddings stay on Ollama.
+        _cm = os.environ.get("OMNI_CONSTRUCTION_MODEL")
+        if _cm:
+            self.extract_model = _cm
+            self.verify_model  = _cm
         self.base_tmp_dir  = base_tmp_dir or tempfile.gettempdir()
 
         self._memory_dir: Optional[str] = None
